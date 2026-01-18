@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package todo.v1;
+
+option go_package = "github.com/yourname/todo-app/api/todo/v1;todov1";
+
+import "google/protobuf/timestamp.proto";
+
+// TodoDomain service provides core business logic for managing todos
+service TodoDomain {
+  // CreateTodo creates a new todo item
+  rpc CreateTodo(CreateTodoRequest) returns (CreateTodoResponse);
+  
+  // CompleteTodo marks a todo as completed
+  rpc CompleteTodo(CompleteTodoRequest) returns (CompleteTodoResponse);
+  
+  // ListTodos retrieves all todos for a user
+  rpc ListTodos(ListTodosRequest) returns (ListTodosResponse);
+  
+  // DeleteTodo soft-deletes a todo
+  rpc DeleteTodo(DeleteTodoRequest) returns (DeleteTodoResponse);
+  
+  // EditTodo updates a todo's title or description
+  rpc EditTodo(EditTodoRequest) returns (EditTodoResponse);
+}
+
+// Todo represents a todo item
+message Todo {
+  int64 id = 1;
+  string user_id = 2;
+  string title = 3;
+  string description = 4;
+  TodoStatus status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp completed_at = 7;
+}
+
+// TodoStatus represents the state of a todo
+enum TodoStatus {
+  TODO_STATUS_UNSPECIFIED = 0;
+  TODO_STATUS_ACTIVE = 1;
+  TODO_STATUS_COMPLETED = 2;
+  TODO_STATUS_DELETED = 3;
+}
+
+// CreateTodoRequest creates a new todo
+message CreateTodoRequest {
+  string user_id = 1;
+  string title = 2;
+  string description = 3;
+  string idempotency_key = 4;
+}
+
+message CreateTodoResponse {
+  Todo todo = 1;
+}
+
+// CompleteTodoRequest marks a todo as completed
+message CompleteTodoRequest {
+  int64 todo_id = 1;
+  string user_id = 2;
+  string idempotency_key = 3;
+  google.protobuf.Timestamp completed_at = 4;
+}
+
+message CompleteTodoResponse {
+  Todo todo = 1;
+}
+
+// ListTodosRequest retrieves todos for a user
+message ListTodosRequest {
+  string user_id = 1;
+  TodoStatus status = 2;  // Optional filter by status
+}
+
+message ListTodosResponse {
+  repeated Todo todos = 1;
+}
+
+// DeleteTodoRequest soft-deletes a todo
+message DeleteTodoRequest {
+  int64 todo_id = 1;
+  string user_id = 2;
+  string idempotency_key = 3;
+}
+
+message DeleteTodoResponse {
+  Todo todo = 1;
+}
+
+// EditTodoRequest updates a todo
+message EditTodoRequest {
+  int64 todo_id = 1;
+  string user_id = 2;
+  string title = 3;
+  string description = 4;
+  string idempotency_key = 5;
+}
+
+message EditTodoResponse {
+  Todo todo = 1;
+}
