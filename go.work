@@ -8,4 +8,5 @@ use (
 	./services/notifier
 	./shared
 	./api/todo/v1
+	./tools/peek
 )
