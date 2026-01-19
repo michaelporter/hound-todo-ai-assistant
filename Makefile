@@ -34,8 +34,9 @@ help:
 proto:
 	@echo "Generating protobuf code..."
 	@mkdir -p api/todo/v1
-	protoc --go_out=. --go_opt=paths=source_relative \
-	       --go-grpc_out=. --go-grpc_opt=paths=source_relative \
+	protoc --go_out=api/todo/v1 --go_opt=paths=source_relative \
+	       --go-grpc_out=api/todo/v1 --go-grpc_opt=paths=source_relative \
+	       --proto_path=proto/todo/v1 \
 	       proto/todo/v1/todo.proto
 	@echo "✓ Protobuf code generated"
 

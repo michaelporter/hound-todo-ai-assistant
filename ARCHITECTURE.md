@@ -73,6 +73,7 @@ graph TB
 ### command-svc
 - Consumes text command queue
 - Parses SMS text commands ("complete #3", "edit #2 buy milk")
+- Accepts human-language commands, does not require strict protocol
 - Generates idempotency keys
 - Validates command syntax
 - **Learn:** Command pattern, input validation, idempotency

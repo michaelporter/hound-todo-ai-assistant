@@ -6,6 +6,8 @@ The todo functionality includes persistent reminders and helpful prompts to get 
 
 This is being written in heavy collaboration with Claude Code. I have only middling knowledge of all tools in this project, including Golang and am using this project to actively learn in interaction with Claude.
 
+All code changes are reviewed manually - Claude has no permission to automatically make changes.
+
 ## Architecture
 
 See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design.
