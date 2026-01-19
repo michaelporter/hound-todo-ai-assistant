@@ -107,6 +107,8 @@ services:
       - SERVICE_NAME=command
       - RABBITMQ_URL=amqp://${RABBITMQ_USER:-hound}:${RABBITMQ_PASSWORD:-hound_dev}@rabbitmq:5672/
       - TODO_DOMAIN_GRPC_ADDR=todo-domain:50051
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - OPENAI_MODEL=${OPENAI_MODEL:-gpt-5-nano}
     volumes:
       - .:/app
       - go_mod_cache:/go/pkg/mod
