@@ -1,4 +1,4 @@
-module github.com/yourname/todo-app/api/todo/v1
+module hound-todo/api/todo/v1
 
 go 1.21
 

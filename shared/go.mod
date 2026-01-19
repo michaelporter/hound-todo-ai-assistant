@@ -1,3 +1,3 @@
-module github.com/yourname/todo-app/shared
+module hound-todo/shared
 
 go 1.21

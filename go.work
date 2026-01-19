@@ -1,11 +1,11 @@
 go 1.21
 
 use (
-    ./services/ingress
-    ./services/transcribe
-    ./services/command
-    ./services/todo-domain
-    ./services/notifier
-    ./shared
-    ./api/todo/v1
+	./services/ingress
+	./services/transcribe
+	./services/command
+	./services/todo-domain
+	./services/notifier
+	./shared
+	./api/todo/v1
 )

@@ -1,0 +1,27 @@
+# =============================================================================
+# Hound Todo App - Development Dockerfile with Hot Reload
+# =============================================================================
+# Uses Air for live reloading during development
+
+FROM golang:1.23-alpine
+
+# Build argument for service name
+ARG SERVICE_NAME
+
+# Install dependencies
+RUN apk add --no-cache git gcc musl-dev
+
+# Install Air for hot-reload (pinned to version compatible with Go 1.23)
+RUN go install github.com/air-verse/air@v1.61.7
+
+# Set working directory
+WORKDIR /app
+
+# go.work is provided via volume mount along with all modules
+
+# Set the service name as environment variable for Air config
+ENV SERVICE_NAME=${SERVICE_NAME}
+
+# Run Air for hot-reload
+# Note: Source code and .air.toml are provided via volume mounts in docker-compose.yml
+CMD ["air", "-c", "/app/docker/.air.toml"]

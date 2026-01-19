@@ -49,3 +49,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Air hot-reload temp directory
+tmp/

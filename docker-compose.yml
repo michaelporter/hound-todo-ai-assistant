@@ -1,0 +1,182 @@
+version: "3.8"
+
+services:
+  # =============================================================================
+  # Infrastructure Services
+  # =============================================================================
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: hound-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-hound}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-hound_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-hound}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-hound}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hound-network
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: hound-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-hound}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-hound_dev}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_running"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - hound-network
+
+  # =============================================================================
+  # Microservices
+  # =============================================================================
+
+  ingress:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        SERVICE_NAME: ingress
+    container_name: hound-ingress
+    environment:
+      - SERVICE_NAME=ingress
+      - HTTP_PORT=8080
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-hound}:${RABBITMQ_PASSWORD:-hound_dev}@rabbitmq:5672/
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    ports:
+      - "8080:8080"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - hound-network
+
+  transcribe:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        SERVICE_NAME: transcribe
+    container_name: hound-transcribe
+    environment:
+      - SERVICE_NAME=transcribe
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-hound}:${RABBITMQ_PASSWORD:-hound_dev}@rabbitmq:5672/
+      - TODO_DOMAIN_GRPC_ADDR=todo-domain:50051
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      todo-domain:
+        condition: service_started
+    networks:
+      - hound-network
+
+  command:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        SERVICE_NAME: command
+    container_name: hound-command
+    environment:
+      - SERVICE_NAME=command
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-hound}:${RABBITMQ_PASSWORD:-hound_dev}@rabbitmq:5672/
+      - TODO_DOMAIN_GRPC_ADDR=todo-domain:50051
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      todo-domain:
+        condition: service_started
+    networks:
+      - hound-network
+
+  todo-domain:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        SERVICE_NAME: todo-domain
+    container_name: hound-todo-domain
+    environment:
+      - SERVICE_NAME=todo-domain
+      - GRPC_PORT=50051
+      - DATABASE_URL=postgres://${POSTGRES_USER:-hound}:${POSTGRES_PASSWORD:-hound_dev}@postgres:5432/todo_db?sslmode=disable
+      - AUDIT_DATABASE_URL=postgres://${POSTGRES_USER:-hound}:${POSTGRES_PASSWORD:-hound_dev}@postgres:5432/audit_db?sslmode=disable
+      - TRANSCRIPTION_DATABASE_URL=postgres://${POSTGRES_USER:-hound}:${POSTGRES_PASSWORD:-hound_dev}@postgres:5432/transcription_db?sslmode=disable
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - hound-network
+
+  notifier:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+      args:
+        SERVICE_NAME: notifier
+    container_name: hound-notifier
+    environment:
+      - SERVICE_NAME=notifier
+      - TODO_DOMAIN_GRPC_ADDR=todo-domain:50051
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-}
+    volumes:
+      - .:/app
+      - go_mod_cache:/go/pkg/mod
+      - go_build_cache:/root/.cache/go-build
+    depends_on:
+      todo-domain:
+        condition: service_started
+    networks:
+      - hound-network
+
+# =============================================================================
+# Networks and Volumes
+# =============================================================================
+
+networks:
+  hound-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  go_mod_cache:
+  go_build_cache:
