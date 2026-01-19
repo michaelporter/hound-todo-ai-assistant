@@ -1,6 +1,10 @@
 # Todo App - SMS-Based Microservices
 
-A learning project exploring production-grade distributed systems patterns through an SMS-based todo application.
+A learning project exploring production-grade distributed systems patterns and AI workflows through an SMS-based todo application.
+
+The todo functionality includes persistent reminders and helpful prompts to get me started on tasks.
+
+This is being written in heavy collaboration with Claude Code. I have only middling knowledge of all tools in this project, including Golang and am using this project to actively learn in interaction with Claude.
 
 ## Architecture
 
@@ -26,16 +30,19 @@ See [ARCHITECTURE.md](./ARCHITECTURE.md) for detailed system design.
 ```
 todo-app/
 ├── services/          # Microservices
-│   ├── ingress/
-│   ├── transcribe/
-│   ├── command/
-│   ├── todo-domain/
-│   └── notifier/
-├── shared/           # Shared libraries
-├── api/              # Generated protobuf code
-├── proto/            # Protobuf definitions
-├── infra/            # Infrastructure as Code
-└── scripts/          # Build/deploy scripts
+│   ├── ingress/       # Twilio webhook receiver → RabbitMQ
+│   ├── transcribe/    # Voice memo transcription
+│   ├── command/       # SMS command parser
+│   ├── todo-domain/   # Core business logic
+│   └── notifier/      # Scheduled notifications
+├── shared/            # Shared libraries (logging, errors, idempotency)
+├── tools/             # Development utilities
+│   └── peek/          # RabbitMQ message inspector
+├── api/               # Generated protobuf code
+├── proto/             # Protobuf definitions
+├── docker/            # Docker configs and Dockerfile
+├── infra/             # Infrastructure as Code
+└── scripts/           # Build/deploy scripts
 ```
 
 ## Getting Started
@@ -43,72 +50,168 @@ todo-app/
 ### Prerequisites
 
 - Go 1.21 or later
-- Protocol Buffers compiler (`protoc`)
-- Docker (for local development)
-- Make
+- Docker Desktop (with WSL2 integration if on Windows)
+- Protocol Buffers compiler (`protoc`) - for modifying protos
 
-### Install protoc and Go plugins
+### Quick Start with Docker Compose
+
+The easiest way to run everything locally:
 
 ```bash
-# macOS
+# Start all services with hot reload
+docker compose up -d
+
+# Check status
+docker compose ps
+
+# View logs
+docker compose logs -f ingress
+```
+
+This starts:
+- **ingress** on http://localhost:8080
+- **RabbitMQ** on localhost:5672 (Management UI: http://localhost:15672)
+- **PostgreSQL** on localhost:5432
+- All other services
+
+Default RabbitMQ credentials: `hound` / `hound_dev`
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `HTTP_PORT` | 8080 | Ingress server port |
+| `RABBITMQ_URL` | (required) | AMQP connection string |
+| `TWILIO_AUTH_TOKEN` | (optional) | Enables webhook signature validation |
+
+These are pre-configured in `docker-compose.yml` for local development.
+
+### Build Tools
+
+```bash
+# Build the peek tool (RabbitMQ inspector)
+cd tools/peek && go build -o ../../bin/peek .
+
+# Build a service manually
+cd services/ingress && go build ./cmd
+```
+
+### Run Tests
+
+```bash
+# Run all tests for a service
+cd services/ingress && go test ./...
+
+# Run with verbose output
+go test -v ./...
+```
+
+## Receiving Real SMS (Twilio Setup)
+
+To test with real SMS messages locally:
+
+### 1. Expose localhost via Tailscale Funnel
+
+```powershell
+# On Windows (or wherever Tailscale is installed)
+tailscale funnel 8080
+```
+
+This gives you a public URL like `https://your-machine.tail1234.ts.net`
+
+### 2. Configure Twilio Webhook
+
+1. Go to [Twilio Console](https://console.twilio.com/) → Phone Numbers → Your Number
+2. Under "Messaging Configuration", set:
+   - **Webhook URL**: `https://your-machine.tail1234.ts.net/webhooks/sms`
+   - **HTTP Method**: POST
+3. Save
+
+### 3. Send a test SMS
+
+Text your Twilio number and watch the logs:
+
+```bash
+docker compose logs -f ingress
+```
+
+## Debugging Tools
+
+### Peek - RabbitMQ Message Inspector
+
+Inspect messages in queues without consuming them:
+
+```bash
+# Build the tool
+cd tools/peek && go build -o ../../bin/peek .
+
+# List all queues
+./bin/peek -list
+
+# Peek at messages
+./bin/peek -queue text.commands
+./bin/peek -queue audio.processing
+```
+
+### RabbitMQ Management UI
+
+http://localhost:15672 (login: `hound` / `hound_dev`)
+
+- View queue depths
+- Inspect and purge messages
+- Monitor connections
+
+### Service Logs
+
+```bash
+# All services
+docker compose logs -f
+
+# Specific service
+docker compose logs -f ingress
+
+# Last 50 lines
+docker compose logs --tail=50 ingress
+```
+
+## Development Workflow
+
+1. **Start services**: `docker compose up -d`
+2. **Modify code** - hot reload picks up changes automatically
+3. **Check logs**: `docker compose logs -f [service]`
+4. **Inspect messages**: `./bin/peek -queue text.commands`
+5. **Run tests**: `cd services/[name] && go test ./...`
+
+## Modifying Protobufs
+
+If you need to change the gRPC service definitions:
+
+```bash
+# Install protoc (macOS)
 brew install protobuf
 
-# Linux
+# Install protoc (Linux)
 sudo apt-get install -y protobuf-compiler
 
 # Install Go plugins
 go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
 go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
-```
 
-### Build
-
-```bash
-# Generate protobuf code
+# Regenerate code after modifying .proto files
 make proto
-
-# Build all services
-make build
-
-# Build specific service
-make build-svc SVC=ingress
 ```
-
-### Run Locally
-
-```bash
-# Run a specific service
-make run-svc SVC=ingress
-
-# Or directly
-cd services/ingress && go run ./cmd
-```
-
-### Test
-
-```bash
-make test
-```
-
-## Development Workflow
-
-1. **Modify protobuf schemas** in `proto/`
-2. **Regenerate code**: `make proto`
-3. **Implement service logic** in `services/[service-name]/internal/`
-4. **Build**: `make build-svc SVC=service-name`
-5. **Test**: `make test`
 
 ## Learning Goals
 
 This project is intentionally overengineered for educational purposes:
 
-✅ Microservices architecture patterns  
-✅ gRPC and Protocol Buffers  
-✅ Message queue patterns (RabbitMQ)  
-✅ Saga orchestration and distributed transactions  
-✅ Kubernetes deployment on ARM64  
-✅ Infrastructure as Code with Terraform  
-✅ Observability (metrics, logs, traces)  
+- Microservices architecture patterns
+- gRPC and Protocol Buffers
+- Message queue patterns (RabbitMQ)
+- Saga orchestration and distributed transactions
+- Kubernetes deployment on ARM64
+- Infrastructure as Code with Terraform
+- Observability (metrics, logs, traces)
 
 ## Resources
 
