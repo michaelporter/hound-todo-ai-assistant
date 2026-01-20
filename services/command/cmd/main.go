@@ -11,6 +11,7 @@ import (
 	"hound-todo/services/command/internal/consumer"
 	"hound-todo/services/command/internal/domain"
 	"hound-todo/services/command/internal/handler"
+	"hound-todo/services/command/internal/publisher"
 	"hound-todo/shared/logging"
 )
 
@@ -49,8 +50,16 @@ func main() {
 	defer cons.Close()
 	logger.Info("Connected to RabbitMQ")
 
+	// Create RabbitMQ publisher for replies
+	pub, err := publisher.New(cfg.RabbitMQURL)
+	if err != nil {
+		logger.Error("Failed to create publisher: %v", err)
+		os.Exit(1)
+	}
+	defer pub.Close()
+
 	// Create command handler
-	h := handler.New(aiClient, domainClient, logger)
+	h := handler.New(aiClient, domainClient, pub, logger)
 
 	// Set up graceful shutdown
 	ctx, cancel := context.WithCancel(context.Background())

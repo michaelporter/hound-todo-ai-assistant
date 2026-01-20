@@ -155,7 +155,7 @@ services:
     container_name: hound-notifier
     environment:
       - SERVICE_NAME=notifier
-      - TODO_DOMAIN_GRPC_ADDR=todo-domain:50051
+      - RABBITMQ_URL=amqp://${RABBITMQ_USER:-hound}:${RABBITMQ_PASSWORD:-hound_dev}@rabbitmq:5672/
       - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID:-}
       - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN:-}
       - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER:-}
@@ -164,8 +164,8 @@ services:
       - go_mod_cache:/go/pkg/mod
       - go_build_cache:/root/.cache/go-build
     depends_on:
-      todo-domain:
-        condition: service_started
+      rabbitmq:
+        condition: service_healthy
     networks:
       - hound-network
 

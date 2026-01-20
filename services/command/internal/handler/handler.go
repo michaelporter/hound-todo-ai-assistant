@@ -9,22 +9,25 @@ import (
 	"hound-todo/services/command/internal/ai"
 	"hound-todo/services/command/internal/consumer"
 	"hound-todo/services/command/internal/domain"
+	"hound-todo/services/command/internal/publisher"
 	"hound-todo/shared/logging"
 )
 
 // Handler processes text commands using AI and executes them via gRPC
 type Handler struct {
-	ai     *ai.Client
-	domain *domain.Client
-	logger *logging.Logger
+	ai        *ai.Client
+	domain    *domain.Client
+	publisher *publisher.Publisher
+	logger    *logging.Logger
 }
 
 // New creates a new command handler
-func New(aiClient *ai.Client, domainClient *domain.Client, logger *logging.Logger) *Handler {
+func New(aiClient *ai.Client, domainClient *domain.Client, pub *publisher.Publisher, logger *logging.Logger) *Handler {
 	return &Handler{
-		ai:     aiClient,
-		domain: domainClient,
-		logger: logger,
+		ai:        aiClient,
+		domain:    domainClient,
+		publisher: pub,
+		logger:    logger,
 	}
 }
 
@@ -49,7 +52,11 @@ func (h *Handler) Handle(ctx context.Context, msg *consumer.TextMessage) error {
 
 	h.logger.Info("Command result: %s", result)
 
-	// TODO: Send result back to user via SMS (notifier-svc or direct Twilio call)
+	// Publish the result to be sent via SMS
+	if err := h.publisher.PublishReply(ctx, msg.UserID, result); err != nil {
+		h.logger.Error("Failed to publish reply: %v", err)
+		return fmt.Errorf("failed to publish reply: %w", err)
+	}
 
 	return nil
 }
