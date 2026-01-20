@@ -396,11 +396,13 @@ func (x *CompleteTodoResponse) GetTodo() *Todo {
 
 // ListTodosRequest retrieves todos for a user
 type ListTodosRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Status        TodoStatus             `protobuf:"varint,2,opt,name=status,proto3,enum=todo.v1.TodoStatus" json:"status,omitempty"` // Optional filter by status
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	UserId          string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Status          TodoStatus             `protobuf:"varint,2,opt,name=status,proto3,enum=todo.v1.TodoStatus" json:"status,omitempty"`                 // Optional filter by status
+	CompletedAfter  *timestamp.Timestamp   `protobuf:"bytes,3,opt,name=completed_after,json=completedAfter,proto3" json:"completed_after,omitempty"`    // Optional: filter completed todos after this time
+	CompletedBefore *timestamp.Timestamp   `protobuf:"bytes,4,opt,name=completed_before,json=completedBefore,proto3" json:"completed_before,omitempty"` // Optional: filter completed todos before this time
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *ListTodosRequest) Reset() {
@@ -445,6 +447,20 @@ func (x *ListTodosRequest) GetStatus() TodoStatus {
 		return x.Status
 	}
 	return TodoStatus_TODO_STATUS_UNSPECIFIED
+}
+
+func (x *ListTodosRequest) GetCompletedAfter() *timestamp.Timestamp {
+	if x != nil {
+		return x.CompletedAfter
+	}
+	return nil
+}
+
+func (x *ListTodosRequest) GetCompletedBefore() *timestamp.Timestamp {
+	if x != nil {
+		return x.CompletedBefore
+	}
+	return nil
 }
 
 type ListTodosResponse struct {
@@ -745,10 +761,12 @@ const file_todo_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\x03 \x01(\tR\x0eidempotencyKey\x12=\n" +
 	"\fcompleted_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vcompletedAt\"9\n" +
 	"\x14CompleteTodoResponse\x12!\n" +
-	"\x04todo\x18\x01 \x01(\v2\r.todo.v1.TodoR\x04todo\"X\n" +
+	"\x04todo\x18\x01 \x01(\v2\r.todo.v1.TodoR\x04todo\"\xe4\x01\n" +
 	"\x10ListTodosRequest\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12+\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x13.todo.v1.TodoStatusR\x06status\"8\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x13.todo.v1.TodoStatusR\x06status\x12C\n" +
+	"\x0fcompleted_after\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0ecompletedAfter\x12E\n" +
+	"\x10completed_before\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0fcompletedBefore\"8\n" +
 	"\x11ListTodosResponse\x12#\n" +
 	"\x05todos\x18\x01 \x03(\v2\r.todo.v1.TodoR\x05todos\"n\n" +
 	"\x11DeleteTodoRequest\x12\x17\n" +
@@ -818,24 +836,26 @@ var file_todo_proto_depIdxs = []int32{
 	12, // 4: todo.v1.CompleteTodoRequest.completed_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: todo.v1.CompleteTodoResponse.todo:type_name -> todo.v1.Todo
 	0,  // 6: todo.v1.ListTodosRequest.status:type_name -> todo.v1.TodoStatus
-	1,  // 7: todo.v1.ListTodosResponse.todos:type_name -> todo.v1.Todo
-	1,  // 8: todo.v1.DeleteTodoResponse.todo:type_name -> todo.v1.Todo
-	1,  // 9: todo.v1.EditTodoResponse.todo:type_name -> todo.v1.Todo
-	2,  // 10: todo.v1.TodoDomain.CreateTodo:input_type -> todo.v1.CreateTodoRequest
-	4,  // 11: todo.v1.TodoDomain.CompleteTodo:input_type -> todo.v1.CompleteTodoRequest
-	6,  // 12: todo.v1.TodoDomain.ListTodos:input_type -> todo.v1.ListTodosRequest
-	8,  // 13: todo.v1.TodoDomain.DeleteTodo:input_type -> todo.v1.DeleteTodoRequest
-	10, // 14: todo.v1.TodoDomain.EditTodo:input_type -> todo.v1.EditTodoRequest
-	3,  // 15: todo.v1.TodoDomain.CreateTodo:output_type -> todo.v1.CreateTodoResponse
-	5,  // 16: todo.v1.TodoDomain.CompleteTodo:output_type -> todo.v1.CompleteTodoResponse
-	7,  // 17: todo.v1.TodoDomain.ListTodos:output_type -> todo.v1.ListTodosResponse
-	9,  // 18: todo.v1.TodoDomain.DeleteTodo:output_type -> todo.v1.DeleteTodoResponse
-	11, // 19: todo.v1.TodoDomain.EditTodo:output_type -> todo.v1.EditTodoResponse
-	15, // [15:20] is the sub-list for method output_type
-	10, // [10:15] is the sub-list for method input_type
-	10, // [10:10] is the sub-list for extension type_name
-	10, // [10:10] is the sub-list for extension extendee
-	0,  // [0:10] is the sub-list for field type_name
+	12, // 7: todo.v1.ListTodosRequest.completed_after:type_name -> google.protobuf.Timestamp
+	12, // 8: todo.v1.ListTodosRequest.completed_before:type_name -> google.protobuf.Timestamp
+	1,  // 9: todo.v1.ListTodosResponse.todos:type_name -> todo.v1.Todo
+	1,  // 10: todo.v1.DeleteTodoResponse.todo:type_name -> todo.v1.Todo
+	1,  // 11: todo.v1.EditTodoResponse.todo:type_name -> todo.v1.Todo
+	2,  // 12: todo.v1.TodoDomain.CreateTodo:input_type -> todo.v1.CreateTodoRequest
+	4,  // 13: todo.v1.TodoDomain.CompleteTodo:input_type -> todo.v1.CompleteTodoRequest
+	6,  // 14: todo.v1.TodoDomain.ListTodos:input_type -> todo.v1.ListTodosRequest
+	8,  // 15: todo.v1.TodoDomain.DeleteTodo:input_type -> todo.v1.DeleteTodoRequest
+	10, // 16: todo.v1.TodoDomain.EditTodo:input_type -> todo.v1.EditTodoRequest
+	3,  // 17: todo.v1.TodoDomain.CreateTodo:output_type -> todo.v1.CreateTodoResponse
+	5,  // 18: todo.v1.TodoDomain.CompleteTodo:output_type -> todo.v1.CompleteTodoResponse
+	7,  // 19: todo.v1.TodoDomain.ListTodos:output_type -> todo.v1.ListTodosResponse
+	9,  // 20: todo.v1.TodoDomain.DeleteTodo:output_type -> todo.v1.DeleteTodoResponse
+	11, // 21: todo.v1.TodoDomain.EditTodo:output_type -> todo.v1.EditTodoResponse
+	17, // [17:22] is the sub-list for method output_type
+	12, // [12:17] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_todo_proto_init() }

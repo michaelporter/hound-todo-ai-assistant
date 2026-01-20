@@ -3,12 +3,21 @@ package domain
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/timestamppb"
 
 	todov1 "hound-todo/api/todo/v1"
 )
+
+// ListTodosFilter contains optional filters for listing todos
+type ListTodosFilter struct {
+	Status          todov1.TodoStatus
+	CompletedAfter  *time.Time
+	CompletedBefore *time.Time
+}
 
 // Client wraps the gRPC client for todo-domain-svc
 type Client struct {
@@ -62,12 +71,21 @@ func (c *Client) CompleteTodo(ctx context.Context, todoID int64, userID, idempot
 	return resp.Todo, nil
 }
 
-// ListTodos retrieves todos for a user
-func (c *Client) ListTodos(ctx context.Context, userID string, status todov1.TodoStatus) ([]*todov1.Todo, error) {
-	resp, err := c.client.ListTodos(ctx, &todov1.ListTodosRequest{
+// ListTodos retrieves todos for a user with optional filters
+func (c *Client) ListTodos(ctx context.Context, userID string, filter ListTodosFilter) ([]*todov1.Todo, error) {
+	req := &todov1.ListTodosRequest{
 		UserId: userID,
-		Status: status,
-	})
+		Status: filter.Status,
+	}
+
+	if filter.CompletedAfter != nil {
+		req.CompletedAfter = timestamppb.New(*filter.CompletedAfter)
+	}
+	if filter.CompletedBefore != nil {
+		req.CompletedBefore = timestamppb.New(*filter.CompletedBefore)
+	}
+
+	resp, err := c.client.ListTodos(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +123,7 @@ func (c *Client) EditTodo(ctx context.Context, todoID int64, userID, title, desc
 // FindTodoByTitle searches for a todo by partial title match
 // Returns the first matching active todo, or nil if not found
 func (c *Client) FindTodoByTitle(ctx context.Context, userID, titleHint string) (*todov1.Todo, error) {
-	todos, err := c.ListTodos(ctx, userID, todov1.TodoStatus_TODO_STATUS_ACTIVE)
+	todos, err := c.ListTodos(ctx, userID, ListTodosFilter{Status: todov1.TodoStatus_TODO_STATUS_ACTIVE})
 	if err != nil {
 		return nil, err
 	}

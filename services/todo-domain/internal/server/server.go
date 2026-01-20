@@ -137,18 +137,30 @@ func (s *Server) ListTodos(ctx context.Context, req *todov1.ListTodosRequest) (*
 		return nil, status.Error(codes.InvalidArgument, "user_id is required")
 	}
 
+	// Build filter from request
+	filter := store.ListTodosFilter{}
+
 	// Convert proto status to store status string
-	statusFilter := ""
 	switch req.Status {
 	case todov1.TodoStatus_TODO_STATUS_ACTIVE:
-		statusFilter = "active"
+		filter.Status = "active"
 	case todov1.TodoStatus_TODO_STATUS_COMPLETED:
-		statusFilter = "completed"
+		filter.Status = "completed"
 	case todov1.TodoStatus_TODO_STATUS_DELETED:
-		statusFilter = "deleted"
+		filter.Status = "deleted"
 	}
 
-	todos, err := s.store.ListTodos(ctx, req.UserId, statusFilter)
+	// Convert date filters
+	if req.CompletedAfter != nil {
+		t := req.CompletedAfter.AsTime()
+		filter.CompletedAfter = &t
+	}
+	if req.CompletedBefore != nil {
+		t := req.CompletedBefore.AsTime()
+		filter.CompletedBefore = &t
+	}
+
+	todos, err := s.store.ListTodos(ctx, req.UserId, filter)
 	if err != nil {
 		s.logger.Error("Failed to list todos: %v", err)
 		return nil, status.Error(codes.Internal, "failed to list todos")

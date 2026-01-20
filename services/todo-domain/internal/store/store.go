@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
@@ -105,28 +106,47 @@ func (s *Store) GetTodo(ctx context.Context, id int64) (*Todo, error) {
 	return todo, nil
 }
 
-// ListTodos retrieves all todos for a user, optionally filtered by status
-func (s *Store) ListTodos(ctx context.Context, userID string, status string) ([]*Todo, error) {
-	var rows *sql.Rows
-	var err error
+// ListTodosFilter contains optional filters for listing todos
+type ListTodosFilter struct {
+	Status          string
+	CompletedAfter  *time.Time
+	CompletedBefore *time.Time
+}
 
-	if status != "" {
-		rows, err = s.db.QueryContext(ctx, `
-			SELECT id, user_id, title, description, status, created_at, updated_at, completed_at, deleted_at
-			FROM todos
-			WHERE user_id = $1 AND status = $2
-			ORDER BY created_at DESC
-		`, userID, status)
+// ListTodos retrieves all todos for a user, optionally filtered by status and date range
+func (s *Store) ListTodos(ctx context.Context, userID string, filter ListTodosFilter) ([]*Todo, error) {
+	// Build dynamic query based on filters
+	query := `
+		SELECT id, user_id, title, description, status, created_at, updated_at, completed_at, deleted_at
+		FROM todos
+		WHERE user_id = $1`
+	args := []interface{}{userID}
+	argIndex := 2
+
+	if filter.Status != "" {
+		query += fmt.Sprintf(" AND status = $%d", argIndex)
+		args = append(args, filter.Status)
+		argIndex++
 	} else {
 		// Default: show active and completed, not deleted
-		rows, err = s.db.QueryContext(ctx, `
-			SELECT id, user_id, title, description, status, created_at, updated_at, completed_at, deleted_at
-			FROM todos
-			WHERE user_id = $1 AND status != 'deleted'
-			ORDER BY created_at DESC
-		`, userID)
+		query += " AND status != 'deleted'"
 	}
 
+	if filter.CompletedAfter != nil {
+		query += fmt.Sprintf(" AND completed_at >= $%d", argIndex)
+		args = append(args, *filter.CompletedAfter)
+		argIndex++
+	}
+
+	if filter.CompletedBefore != nil {
+		query += fmt.Sprintf(" AND completed_at <= $%d", argIndex)
+		args = append(args, *filter.CompletedBefore)
+		argIndex++
+	}
+
+	query += " ORDER BY created_at DESC"
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
 		return nil, err
 	}

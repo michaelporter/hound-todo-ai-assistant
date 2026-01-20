@@ -2,8 +2,10 @@ package handler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strconv"
+	"time"
 
 	todov1 "hound-todo/api/todo/v1"
 	"hound-todo/services/command/internal/ai"
@@ -11,6 +13,11 @@ import (
 	"hound-todo/services/command/internal/domain"
 	"hound-todo/services/command/internal/publisher"
 	"hound-todo/shared/logging"
+)
+
+const (
+	// Confidence threshold below which we include AI explanation in reply
+	lowConfidenceThreshold = 0.85
 )
 
 // Handler processes text commands using AI and executes them via gRPC
@@ -43,11 +50,21 @@ func (h *Handler) Handle(ctx context.Context, msg *consumer.TextMessage) error {
 	h.logger.Info("Parsed command: action=%s confidence=%.2f explanation=%s",
 		cmd.Action, cmd.Confidence, cmd.Explanation)
 
+	// Debug: log full parameters
+	if paramsJSON, err := json.Marshal(cmd.Parameters); err == nil {
+		fmt.Printf("[DEBUG] Parameters: %s\n", string(paramsJSON))
+	}
+
 	// Execute the command
 	result, err := h.executeCommand(ctx, msg.UserID, msg.IdempotencyKey, cmd)
 	if err != nil {
 		h.logger.Error("Command execution failed: %v", err)
 		return fmt.Errorf("command execution failed: %w", err)
+	}
+
+	// If confidence is low, append explanation to help user understand limitations
+	if cmd.Confidence < lowConfidenceThreshold && cmd.Explanation != "" {
+		result = fmt.Sprintf("%s\n\n(Note: %s)", result, cmd.Explanation)
 	}
 
 	h.logger.Info("Command result: %s", result)
@@ -133,24 +150,41 @@ func (h *Handler) handleComplete(ctx context.Context, userID, idempotencyKey str
 }
 
 func (h *Handler) handleList(ctx context.Context, userID string, cmd *ai.Command) (string, error) {
-	filter := cmd.Parameters["filter"]
+	filterParam := cmd.Parameters["filter"]
 
-	var status todov1.TodoStatus
-	switch filter {
+	// Build the filter
+	filter := domain.ListTodosFilter{}
+
+	switch filterParam {
 	case "completed":
-		status = todov1.TodoStatus_TODO_STATUS_COMPLETED
+		filter.Status = todov1.TodoStatus_TODO_STATUS_COMPLETED
 	case "all":
-		status = todov1.TodoStatus_TODO_STATUS_UNSPECIFIED
+		filter.Status = todov1.TodoStatus_TODO_STATUS_UNSPECIFIED
 	default:
-		status = todov1.TodoStatus_TODO_STATUS_ACTIVE
+		filter.Status = todov1.TodoStatus_TODO_STATUS_ACTIVE
 	}
 
-	todos, err := h.domain.ListTodos(ctx, userID, status)
+	// Parse date filters if provided
+	if completedAfter := cmd.Parameters["completed_after"]; completedAfter != "" {
+		if t, err := time.Parse(time.RFC3339, completedAfter); err == nil {
+			filter.CompletedAfter = &t
+		}
+	}
+	if completedBefore := cmd.Parameters["completed_before"]; completedBefore != "" {
+		if t, err := time.Parse(time.RFC3339, completedBefore); err == nil {
+			filter.CompletedBefore = &t
+		}
+	}
+
+	todos, err := h.domain.ListTodos(ctx, userID, filter)
 	if err != nil {
 		return "", err
 	}
 
 	if len(todos) == 0 {
+		if filter.CompletedAfter != nil || filter.CompletedBefore != nil {
+			return "No completed todos found in that time range.", nil
+		}
 		return "Your list is empty! Text me something to remember.", nil
 	}
 

@@ -43,12 +43,18 @@ Examples:
 Show the user's current todos.
 Parameters:
 - filter (optional): "active", "completed", or "all" (default: "active")
+- completed_after (optional): ISO 8601 date string to filter completed todos after this date (e.g., "2026-01-19T00:00:00Z")
+- completed_before (optional): ISO 8601 date string to filter completed todos before this date (e.g., "2026-01-20T23:59:59Z")
+
+Date filtering only applies when filter is "completed". For relative dates like "yesterday" or "last week", calculate the appropriate ISO 8601 timestamps based on today's date.
 
 Examples:
-- "what's on my list?"
-- "show my todos"
-- "what do I need to do?"
-- "show completed tasks"
+- "what's on my list?" → filter: "active"
+- "show my todos" → filter: "active"
+- "what do I need to do?" → filter: "active"
+- "show completed tasks" → filter: "completed"
+- "what did I complete yesterday?" → filter: "completed", completed_after: start of yesterday, completed_before: end of yesterday
+- "show todos I finished last week" → filter: "completed", completed_after: start of last week, completed_before: end of last week
 
 ### delete
 Remove a todo from the list.

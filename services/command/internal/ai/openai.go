@@ -127,6 +127,11 @@ func (c *Client) ParseCommand(ctx context.Context, userMessage string) (*Command
 
 	// Parse the LLM's JSON response into a Command
 	content := chatResp.Choices[0].Message.Content
+	finishReason := chatResp.Choices[0].FinishReason
+
+	// Debug logging
+	fmt.Printf("[DEBUG] LLM finish_reason=%s tokens=%d raw_response=%s\n",
+		finishReason, chatResp.Usage.TotalTokens, content)
 
 	var cmd Command
 	if err := json.Unmarshal([]byte(content), &cmd); err != nil {

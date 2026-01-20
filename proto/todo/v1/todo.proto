@@ -71,6 +71,8 @@ message CompleteTodoResponse {
 message ListTodosRequest {
   string user_id = 1;
   TodoStatus status = 2;  // Optional filter by status
+  google.protobuf.Timestamp completed_after = 3;  // Optional: filter completed todos after this time
+  google.protobuf.Timestamp completed_before = 4; // Optional: filter completed todos before this time
 }
 
 message ListTodosResponse {
