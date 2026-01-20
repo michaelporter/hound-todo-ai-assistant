@@ -12,7 +12,7 @@ import (
 
 const (
 	openAIURL     = "https://api.openai.com/v1/chat/completions"
-	defaultModel  = "gpt-5-nano" // Fast and cheap for simple parsing tasks
+	defaultModel  = "gpt-5-mini" // Fast and cheap for simple parsing tasks
 	requestTimeout = 30 * time.Second
 )
 
