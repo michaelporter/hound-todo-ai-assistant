@@ -179,6 +179,119 @@ docker compose up -d    # Recreates with fresh data
 
 Or use the Management UI at http://localhost:15672
 
+## Live Debugging Sessions
+
+One of the most effective debugging workflows is having Claude monitor live logs while the user interacts with the product via SMS. This section describes how to conduct these sessions.
+
+### Starting a Debug Session
+
+1. **User announces they're starting a session**: "I'm going to send some SMS messages, watch the logs"
+
+2. **Claude starts monitoring logs**:
+   ```bash
+   docker compose logs -f --tail=0
+   ```
+   The `--tail=0` flag starts fresh, showing only new logs from this point forward.
+
+3. **User interacts with the product** via SMS (creating todos, completing them, etc.)
+
+4. **Claude captures observations** in a structured format (see below)
+
+5. **User signals end of session**: "Okay, I'm done"
+
+6. **Claude provides analysis and improvement suggestions**
+
+### Observation Format
+
+During the session, Claude should capture each interaction in this structure:
+
+```
+### Interaction N: [Brief description]
+- **User Action**: What the user did (e.g., "Sent SMS: 'add buy groceries'")
+- **Expected Flow**: ingress → command → todo-domain → notifier
+- **Observed Flow**: What actually happened based on logs
+- **Result**: SUCCESS / PARTIAL / FAILURE
+- **Timing**: Approximate end-to-end latency if observable
+- **Notes**: Any anomalies, warnings, or interesting behavior
+```
+
+### What to Watch For
+
+**Success indicators:**
+- Webhook received by ingress-svc
+- Message published to RabbitMQ
+- Command parsed correctly by command-svc
+- gRPC call to todo-domain-svc completed
+- Database operation successful
+- Reply SMS sent by notifier-svc
+
+**Failure indicators:**
+- Error logs (look for `level=error` or stack traces)
+- Timeout messages
+- RabbitMQ connection issues
+- gRPC call failures
+- OpenAI API errors in command-svc
+- Twilio API errors in notifier-svc
+
+**Quality signals:**
+- AI command parsing confidence (command-svc logs this)
+- Unexpected command interpretations
+- Slow responses (user experience impact)
+- Retries or repeated processing
+
+### Post-Session Analysis
+
+After the session, Claude should provide:
+
+1. **Session Summary**: Overview of interactions and success rate
+2. **Issues Identified**: Specific problems observed, with log evidence
+3. **Improvement Suggestions**: Prioritized list of fixes or enhancements
+4. **Questions**: Any unclear behavior that needs investigation
+
+### Example Session Output
+
+```
+## Debug Session Summary - [Date]
+
+### Overview
+- Total interactions: 5
+- Successful: 3
+- Partial/Failed: 2
+
+### Interactions
+
+#### Interaction 1: Add todo
+- **User Action**: SMS "remind me to call mom"
+- **Observed Flow**: ingress ✓ → command ✓ → todo-domain ✓ → notifier ✓
+- **Result**: SUCCESS
+- **Notes**: Command parsed as "add todo: call mom" with high confidence (0.94)
+
+#### Interaction 2: List todos (system failure)
+- **User Action**: SMS "what's on my list"
+- **Observed Flow**: ingress ✓ → command ✓ → todo-domain ✓ → notifier ✗
+- **Result**: PARTIAL - system failure
+- **Notes**: Todo retrieved but SMS reply failed - Twilio rate limit hit
+
+#### Interaction 3: Complete todo (semantic failure)
+- **User Action**: SMS "I finished the laundry"
+- **Observed Flow**: ingress ✓ → command ✓ → todo-domain ✓ → notifier ✓
+- **Result**: FAILURE - semantic error
+- **Notes**: System worked correctly but AI interpreted this as "add todo: finish the laundry"
+  instead of completing the existing "do laundry" todo. Confidence was 0.72 (borderline).
+  User received confirmation of new todo creation, not completion.
+
+### Issues Identified
+1. **Semantic**: Past tense phrases like "I finished X" not recognized as completion commands
+2. **System**: Twilio rate limiting when multiple replies sent quickly
+3. **UX**: Low-confidence interpretations (< 0.8) proceed without user confirmation
+
+### Suggested Improvements
+1. Train command-svc to recognize past tense as completion intent ("I did X", "finished X", "done with X")
+2. Add confirmation prompt for low-confidence (<0.8) command interpretations
+3. Add exponential backoff retry for Twilio API calls
+4. Fuzzy match "finish the laundry" to existing "do laundry" todo
+```
+
 ## Go Workspace
 
 The project uses Go workspaces (`go.work`). All modules are linked:
