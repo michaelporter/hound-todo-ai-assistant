@@ -8,6 +8,54 @@ SMS-based todo application using microservices architecture. The user is learnin
 
 **Repository**: `git@github.com:michaelporter/hound-todo-ai-assistant.git`
 
+## Migration Checklist
+
+When setting up a new development environment, complete these steps:
+
+### 1. SSH Keys for GitHub
+```bash
+# Generate a new SSH key (if needed)
+ssh-keygen -t ed25519 -C "your_email@example.com"
+
+# Add to ssh-agent
+eval "$(ssh-agent -s)"
+ssh-add ~/.ssh/id_ed25519
+
+# Copy public key and add to GitHub → Settings → SSH Keys
+cat ~/.ssh/id_ed25519.pub
+```
+
+### 2. API Keys
+Copy these values from your previous environment's `.env` file:
+- `OPENAI_API_KEY` - Required for command parsing and transcription
+- `TWILIO_ACCOUNT_SID` - Required for SMS
+- `TWILIO_AUTH_TOKEN` - Required for SMS
+- `TWILIO_PHONE_NUMBER` - Required for SMS
+
+### 3. Claude Code MCP Servers
+Configure these MCP servers in Claude Code settings:
+
+**Notion** (for requirements tracking):
+- Server: `@notionhq/notion-mcp-server`
+- Requires `NOTION_API_KEY` environment variable
+- After configuring, run `/mcp` in Claude Code to authenticate
+
+**GitHub** (for repository operations):
+- Server: `@modelcontextprotocol/server-github`
+- Requires `GITHUB_PERSONAL_ACCESS_TOKEN` environment variable
+
+### 4. Tailscale (for receiving real SMS)
+```bash
+# Install Tailscale
+curl -fsSL https://tailscale.com/install.sh | sh
+
+# Authenticate
+sudo tailscale up
+
+# Expose ingress service
+tailscale funnel 8080
+```
+
 ## Prerequisites to Install
 
 ### Required
