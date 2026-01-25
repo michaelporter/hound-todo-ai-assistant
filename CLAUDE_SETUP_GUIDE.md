@@ -255,8 +255,8 @@ After the session, Claude should provide:
 
 ### Overview
 - Total interactions: 5
-- Successful: 3
-- Partial/Failed: 2
+- Successful: 2
+- Partial/Failed: 3
 
 ### Interactions
 
@@ -280,16 +280,33 @@ After the session, Claude should provide:
   instead of completing the existing "do laundry" todo. Confidence was 0.72 (borderline).
   User received confirmation of new todo creation, not completion.
 
+#### Interaction 4: Help starting task (unhelpful nudge)
+- **User Action**: SMS "I need help starting on the laundry task"
+- **Observed Flow**: ingress ✓ → command ✓ → todo-domain ✓ → notifier ✓
+- **Result**: FAILURE - poor nudge quality
+- **Notes**: System correctly identified help request for "do laundry" todo. Response was:
+  "Get started by adding a shirt to the washing machine and pressing start."
+  This is counterproductive - starting a wash cycle with one shirt is wasteful.
+  A better nudge would be: "Look around your room for any clothes that need to
+  go in the hamper." This is a small preparatory action that builds momentum
+  toward the task without committing to an inefficient execution.
+
 ### Issues Identified
 1. **Semantic**: Past tense phrases like "I finished X" not recognized as completion commands
 2. **System**: Twilio rate limiting when multiple replies sent quickly
 3. **UX**: Low-confidence interpretations (< 0.8) proceed without user confirmation
+4. **Nudge quality**: AI suggests jumping into task execution rather than small preparatory actions
 
 ### Suggested Improvements
 1. Train command-svc to recognize past tense as completion intent ("I did X", "finished X", "done with X")
 2. Add confirmation prompt for low-confidence (<0.8) command interpretations
 3. Add exponential backoff retry for Twilio API calls
 4. Fuzzy match "finish the laundry" to existing "do laundry" todo
+5. Improve nudge prompts to suggest small momentum-building actions, not full task execution
+   - Bad: "Start the washing machine" (commits to inefficient cycle)
+   - Good: "Gather any clothes from your room" (low-friction preparation)
+6. Consider adding nudge quality criteria to AI prompt: "Suggest the smallest possible
+   action that moves toward completing the task without waste or overcommitment"
 ```
 
 ## Go Workspace
