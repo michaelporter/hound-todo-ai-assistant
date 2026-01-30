@@ -143,10 +143,16 @@ func (h *WebhookHandler) validateSignature(r *http.Request) bool {
 	if url == "" {
 		// Fallback: construct URL from request
 		scheme := "https"
-		if r.TLS == nil {
+		if proto := r.Header.Get("X-Forwarded-Proto"); proto != "" {
+			scheme = proto
+		} else if r.TLS == nil {
 			scheme = "http"
 		}
-		url = fmt.Sprintf("%s://%s%s", scheme, r.Host, r.URL.Path)
+		host := r.Header.Get("X-Forwarded-Host")
+		if host == "" {
+			host = r.Host
+		}
+		url = fmt.Sprintf("%s://%s%s", scheme, host, r.URL.Path)
 	}
 
 	// Use Twilio's request validator
